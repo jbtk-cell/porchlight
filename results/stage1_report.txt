@@ -1,0 +1,45 @@
+6132 CT dwellings modeled; 735 have no cooling equipment.
+Analysing 53 of them.
+
+  ...10/53
+  ...20/53
+  ...30/53
+  ...40/53
+  ...50/53
+
+n = 53 | cooling energy consumed: 0.000 kWh (confirms these are free-running)
+outdoor during heat wave: max 32.2-36.7 C, overnight min 17.8-20.3 C (varies by county weather file)
+
+--- exposure gap: indoor overnight minimum minus outdoor overnight minimum ---
+  mean +7.5 C, range +5.0 to +15.7 C
+
+--- by tenure ---
+                n  night_gap  in_night_min
+in.tenure                                 
+Not Available   2       6.16         23.96
+Owner          26       7.00         25.74
+Renter         25       8.08         26.95
+
+--- by building type ---
+                                 n  night_gap  in_night_min  in_max  tau_hours
+in.geometry_building_type_recs                                                
+Mobile Home                      6       7.05         25.23   40.80       3.80
+Multi-Family with 2 - 4 Units   12       7.28         26.31   36.85       7.44
+Multi-Family with 5+ Units      12       9.39         28.18   39.99      12.79
+Single-Family Attached          11       6.69         25.61   34.44      12.35
+Single-Family Detached          12       6.71         25.32   35.38       9.64
+
+--- parameter recovery vs known air leakage (n=53) ---
+  Pearson  r = -0.166
+  Spearman r = -0.226
+  physics predicts NEGATIVE: a leakier envelope has a shorter time constant
+
+--- exposure misclassification, per dwelling against its own weather ---
+   threshold  indoor over  outdoor over   MISSED
+        26 C           23             0       23
+        28 C            7             0        7
+        30 C            4             0        4
+
+  'MISSED' counts dwellings whose overnight indoor minimum exceeded the threshold
+  while their own outdoor minimum did not. Those are the dwellings an
+  outdoor-based exposure assessment scores as safe when they are not.
