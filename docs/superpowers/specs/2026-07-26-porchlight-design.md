@@ -38,21 +38,68 @@ direct outreach: Philadelphia runs volunteer block captains, New York a buddy
 system, San Jose a Buddies Program. These work, and they run on spreadsheets and
 phone calls.
 
+**Connecticut-specific prior art, stated honestly.** Eversource runs a Life
+Support Customer program with automated outage calls, community liaisons
+monitoring affected customers, and post-event restoration confirmation. That is
+real prior art covering part of the outage hazard, and it is better than what
+most states have. Its limits are the opening: enrollment requires a physician,
+APRN, or PA to complete a medical certification, so it is opt-in behind a
+clinical gate; it is scoped to one utility's customers; it addresses outages only
+and does nothing for heat; and it knows nothing about conditions inside the home.
+New Haven proper is served by United Illuminating, not Eversource, so much of the
+city sits outside that program entirely.
+
 **The gap this project fills.** There is no software that takes a hazard, a
 roster of at-risk people, and an estimate of conditions *inside each home*, and
 turns that into a prioritized, escalating, auditable sequence of human contact.
 That is the whole product.
 
-### Why Baltimore is the right pilot geography
+### Why New Haven is the right pilot geography
 
-Baltimore's rowhouse stock traps heat and stays hot into the night. Land surface
-temperature is measurably higher in block groups with lower income, higher
-poverty, and more elderly residents. And there is a documented, telling detail:
-many residents will not put a window AC unit on the first floor for fear of
-break-ins. That is not a problem a thermostat solves — it is exactly the kind of
-thing a human check-in surfaces. The Baltimore Office of Sustainability already
-operates urban heat island sensors, and there is existing community-perspectives
-research on heat and health in the city to build on.
+A cooler climate is not a safer one. Heat mortality risk varies by latitude, and
+the effect of heat on mortality is *more* pronounced in more northerly climates —
+precisely because those populations are less acclimatized and, critically, less
+air-conditioned. Connecticut's lower absolute heat death count is a consequence
+of fewer hot days, not of lower risk per hot day.
+
+New Haven's housing stock then stacks the two strongest predictors of missing air
+conditioning on top of each other:
+
+- **It is among the oldest in America.** 40.7% of units were built before 1939,
+  another 30.2% between 1940 and 1969 — roughly 71% predating 1970. Units built
+  before 1960 are *three times* more likely to lack AC entirely and *four times*
+  more likely to have only a window unit.
+- **73.4% of dwellings are rentals**, and 77% of units are multifamily. Renters
+  are over twice as likely to lack AC and 2.5 times more likely to have only a
+  window unit than single-family owners. Renters also cannot install central air,
+  and no jurisdiction requires landlords to provide cooling the way they require
+  heat.
+- **52% of New Haven renters are cost-burdened**, which produces the failure mode
+  of owning a window unit and not running it.
+
+The dominant building type is the **triple-decker** and the Victorian wood-frame
+multifamily. This matters more than it first appears: within a single triple-
+decker, the third floor is a meaningfully different thermal environment from the
+first, under identical weather and identical construction. Floor-within-building
+becomes a first-class feature of both the risk model and the indoor estimator,
+and it is a sharper, more defensible signal than anything available in a city of
+uniform two-story rowhouses.
+
+New Haven was *not* included in NOAA's 2024 urban heat island mapping campaign
+(nearby Bridgeport had related work), so no high-resolution local heat map
+exists. That is an opening rather than an obstacle, but it does mean the indoor
+estimator carries more of the load here.
+
+**The institutional landscape is unusually good.** Connecticut activates a
+statewide Extreme Hot Weather Protocol by gubernatorial declaration — a discrete,
+externally-triggered event far cleaner than ad hoc municipal declarations. The
+city opens all libraries and senior centers as cooling centers (Atwater,
+Dixwell/Newhallville, East Shore), and 211ct.org centrally coordinates cooling
+center information statewide, which gives the system an actual data source for
+open cooling sites. DataHaven publishes neighborhood-level wellbeing data for all
+169 Connecticut towns, including social support and loneliness measures, plus
+in-person survey data from six New Haven neighborhoods — a local data asset most
+cities simply do not have.
 
 ---
 
@@ -99,12 +146,25 @@ needs. So the sensor tier cannot be the product.
 Instead: **a small sensor deployment is used to validate a model that covers
 everyone else.** Deploy 5–10 kits, collect ground-truth indoor temperature, and
 fit a model that predicts indoor temperature trajectory from outdoor conditions
-plus building characteristics (vintage, type, assessor data, tract-level social
-vulnerability). Validate the model against the sensors you actually have. Then
-apply it to an entire roster with no hardware at all.
+plus building characteristics (vintage, type, floor, assessor data,
+neighborhood-level social vulnerability). Validate the model against the sensors
+you actually have. Then apply it to an entire roster with no hardware at all.
 
 This makes the project scientifically legible rather than merely an app: there is
 a measurement, a model, a validation, and an error bar.
+
+**The triple-decker gives this a real experimental design, not a convenience
+sample.** Instrument all three floors of a single triple-decker plus one outdoor
+reference. Building envelope, construction, orientation, and weather are held
+constant; only floor varies. That isolates vertical thermal stratification — the
+dominant intra-building effect in New Haven's housing stock — from four sensors.
+Repeat across two or three buildings of differing vintage and you get
+between-building variance as well.
+
+This is a materially better use of ten sensors than scattering them across ten
+unrelated homes, and it is available specifically because of what New Haven is
+built out of. It also means a negative result is still a result: if floor turns
+out not to predict much, that is worth knowing and reporting.
 
 ---
 
@@ -168,7 +228,8 @@ consent records. Produces a `RiskScore` per household per hazard kind from: age,
 AC presence and type, electricity-dependent equipment, medications that impair
 thermoregulation (an underused and genuinely predictive signal —
 anticholinergics, diuretics, beta blockers), social isolation, building vintage
-and type, and tract social vulnerability. Scores are explainable: every score
+and type, floor within building, and neighborhood social vulnerability. Scores
+are explainable: every score
 carries the list of factors that produced it. A coordinator must be able to
 answer "why is she at the top of my list?"
 
@@ -178,7 +239,8 @@ Output: predicted indoor temperature trajectory with uncertainty. Two backends
 behind one interface — `MeasuredEstimator` (a sensor is present) and
 `ModeledEstimator` (no sensor). Everything downstream consumes the interface and
 neither knows nor cares which backend answered. The overnight low matters more
-than the daytime peak: rowhouses that never cool down are the documented killer.
+than the daytime peak: units that never cool down overnight are the documented
+killer, and in New Haven's triple-deckers the top floor is the worst case.
 
 **[4] Telemetry Ingest.** Endpoint for sensor heartbeats and readings. Holds the
 correlated-silence outage detector: cluster recently-silent devices in space and
@@ -209,7 +271,7 @@ blocks away. Here is what to look for. Log what you found." Nothing else.
 
 EAGLE-I publishes historical outage data from 2014 to 2025 at 15-minute county
 resolution, and NWS alerts are archived. So the whole pipeline can be replayed
-against a real historical event and asserted on: feed a recorded Baltimore heat
+against a real historical event and asserted on: feed a recorded New Haven heat
 wave through ingest → estimator → triggers → escalation, and check which
 households would have been flagged, in what order, and when.
 
@@ -271,7 +333,8 @@ it.
 ## 6. Scope for one semester
 
 **In:**
-- Hazard ingest: NWS + one utility (BGE) + EAGLE-I historical replay
+- Hazard ingest: NWS + one utility (United Illuminating) + EAGLE-I historical
+  replay
 - Roster, consent records, explainable risk scoring
 - Indoor climate estimator, both backends, validated against real sensors
 - Correlated-silence outage detector
@@ -296,14 +359,18 @@ it.
 ## 7. Open questions for review
 
 1. **Partner organization.** The design assumes a real coordinator. Is the plan
-   to actually approach a Baltimore partner (Meals on Wheels of Central Maryland,
-   a CERT team, the city Health Department's aging division), or to build against
+   to actually approach a New Haven partner (Agency on Aging of South Central
+   Connecticut, Senior Meals on Wheels Greater New Haven / LifeBridge, the city's
+   Elderly Services department, or the Office of Emergency Management), or to
+   build against
    a realistic synthetic roster and treat partnership as future work? This
    changes how much of section 5 must be *implemented* versus *specified*.
 2. **Sensor deployment.** Are there 5–10 real homes available, or should ground
    truth come from instrumenting a few volunteered homes of any kind — a friend's
-   apartment, a relative's rowhouse — accepting that the validation set is not
-   representative?
+   apartment, a relative's place — accepting that the validation set is not
+   representative? The triple-decker design needs one cooperative building with
+   access to all three floors, which may be easier to arrange than five scattered
+   households.
 3. **Which hazard leads.** Heat is the better first build: the trigger is
    forecastable days ahead, the season is testable, and the estimator is the
    interesting part. Outage then reuses the same engine. Confirm that ordering.
@@ -316,7 +383,7 @@ it.
 
 ## 8. Success criteria
 
-- Replaying a real historical Baltimore heat event produces a ranked check-in
+- Replaying a real historical New Haven heat event produces a ranked check-in
   queue, and the ranking can be justified household by household.
 - The indoor climate estimator's error against sensor ground truth is measured
   and reported, not assumed. A stated error bar is the deliverable, whatever its
@@ -341,7 +408,12 @@ it.
 | 25% rise in disease-related deaths, 2003 NYC blackout | Same |
 | PG&E failed to notify 23,000 customers | AARP, utility alerts for medically vulnerable |
 | Philadelphia block captains, NYC buddy system, San Jose Buddies | Grist / UC Berkeley Journalism |
-| Baltimore rowhouses trap heat; LST higher in poorer, older, minority block groups; AC not installed on first floor due to break-in fear | CNS Maryland "Code Red"; PubMed 21371807 |
+| Heat mortality effects more pronounced at northerly latitudes | Methods to Estimate Acclimatization to Urban Heat Island Effects, PMC4937865 |
+| New Haven housing: 40.7% pre-1939, 30.2% 1940-69; 73.4% rental; 77% multifamily; 52% of renters cost-burdened | DataHaven New Haven Equity Profile 2023; NeighborhoodScout |
+| Pre-1960 units 3x more likely to lack AC, 4x more likely window-only; renters 2x more likely to lack AC | National Low Income Housing Coalition |
+| CT statewide Extreme Hot Weather Protocol; cooling centers via 211ct.org; New Haven opens libraries and senior centers | CT DEMHS; newhavenct.gov Office of Emergency Management |
+| Eversource Life Support Customer program; UI serves New Haven | eversource.com medical protection; uinet.com/outages |
+| New Haven not in NOAA 2024 heat mapping cohort | NOAA news release, 2024 urban heat island initiative |
 | NWS API free, no key, alerts + forecast by lat/lon | weather.gov/documentation/services-web-api |
 | emPOWER REST service, de-identified, to ZIP, monthly | empowerprogram.hhs.gov/empower-rest.html |
 | EAGLE-I county-level 15-min, 2014–2025, via Globus; live platform not public | ORNL Constellation / OSTI DOE Data Explorer |

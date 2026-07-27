@@ -2,7 +2,7 @@
 
 **What it is, why it exists, what's actually built, and how hard it would be to deploy**
 
-Prepared 26 July 2026 · Status: design complete, no code written yet
+Prepared 26 July 2026 · Pilot geography: New Haven, CT · Status: design complete, no code written yet
 
 ---
 
@@ -65,23 +65,53 @@ out when their equipment stopped.
 volunteer block captains. New York runs a buddy system. San Jose has a Buddies
 Program. These work. And they run on spreadsheets, binders, and phone calls.
 
+**One Connecticut-specific caveat, stated honestly:** Eversource runs a Life
+Support Customer program with automated outage calls, community liaisons
+monitoring affected customers, and post-event restoration confirmation. That's
+real prior art covering part of the outage side, and it's better than what most
+states have. Its limits are the opening — enrollment requires a physician, APRN,
+or PA to sign a medical certification, so it's opt-in behind a clinical gate; it
+covers one utility's customers; it does nothing for heat; and it knows nothing
+about conditions inside the home. New Haven proper is served by **United
+Illuminating**, not Eversource, so much of the city sits outside it entirely.
+
 So the gap isn't "someone should check on people." Everyone knows that. The gap
 is that **there is no software that decides who to check on, in what order, and
 escalates when nobody answers.** That's the product.
 
-### Why Baltimore is the right place to build it
+### Why New Haven is the right place to build it
 
-Baltimore's rowhouse stock traps heat and stays hot deep into the night — the
-overnight low, not the afternoon peak, is what kills. Land surface temperature is
-measurably higher in block groups with lower income, higher poverty, and more
-elderly residents.
+The obvious objection first: *Connecticut isn't hot.* That objection is backwards.
+Heat mortality risk varies by latitude, and the effect of heat on mortality is
+**more** pronounced in more northerly climates — precisely because those
+populations are less acclimatized and, critically, far less air-conditioned.
+Connecticut's lower absolute death count comes from having fewer hot days, not
+from being safer on the hot days it has.
 
-And there's one documented detail that convinced me this problem needs humans and
-not thermostats: **many residents won't put a window AC unit on the first floor
-because they're afraid of break-ins.** No sensor solves that. No app solves that.
-A person knocking on the door surfaces it, and then someone can do something
-about it. That detail is why the system dispatches humans instead of just sending
-alerts.
+New Haven then stacks the two strongest predictors of missing air conditioning
+directly on top of each other:
+
+- **Its housing is among the oldest in America.** 40.7% of units predate 1939,
+  another 30.2% were built between 1940 and 1969 — roughly 71% built before 1970.
+  Units built before 1960 are **three times** more likely to lack AC entirely and
+  **four times** more likely to have only a window unit.
+- **73.4% of dwellings are rentals** and 77% are multifamily. Renters are over
+  twice as likely to lack AC and 2.5 times more likely to have only a window
+  unit. They also can't install central air, and no jurisdiction requires
+  landlords to provide cooling the way they require heat.
+- **52% of New Haven renters are cost-burdened** — which produces the specific
+  failure mode of owning a window unit and not turning it on.
+
+Old, rented, and unaffordable to cool. That's the profile, and New Haven has it
+at scale.
+
+**And the triple-decker is a gift to this project.** New Haven's dominant
+building type is the triple-decker and the Victorian wood-frame multifamily.
+Within one triple-decker, the third floor is a dramatically different thermal
+environment from the first — same building, same construction, same weather, same
+day. That makes floor-within-building a first-class feature of the model, and it
+sets up an experiment I'll describe in Part 2 that's genuinely better than
+anything Baltimore's uniform rowhouses would allow.
 
 ---
 
@@ -135,12 +165,26 @@ So the sensors aren't the product. Here's what they're for instead:
 
 > Deploy 5–10 kits. Collect real ground-truth indoor temperature. Use it to
 > **fit and validate a model** that predicts indoor temperature from outdoor
-> conditions plus building characteristics — vintage, construction type,
-> assessor data, tract-level social vulnerability. Then apply that model to an
+> conditions plus building characteristics — vintage, construction type, floor
+> within building, assessor data, neighborhood social vulnerability. Then apply
+> that model to an
 > entire roster of hundreds of homes **with no hardware at all.**
 
-The sensored homes teach you what a 1920s Baltimore rowhouse does at 3 a.m. in
-August. Then you can reason about every other 1920s rowhouse in the city.
+The sensored homes teach you what a 1910s New Haven triple-decker does at 3 a.m.
+in August. Then you can reason about every other triple-decker in the city.
+
+**And here New Haven hands you a real experiment instead of a convenience
+sample.** Instrument all three floors of a single triple-decker, plus one outdoor
+reference. Building envelope, construction, orientation, and weather are all held
+constant — **only the floor varies.** Four sensors, in one building, isolate
+vertical thermal stratification, which is the dominant intra-building effect in
+this housing stock. Add a second and third building of different vintage and you
+get between-building variance too.
+
+That's a designed experiment costing about $25, and it's a far better use of ten
+sensors than scattering them across ten unrelated houses. It also means a
+negative result still counts: if floor turns out not to predict much, that's a
+finding worth reporting.
 
 This is also what makes the project scientifically legible rather than "an app."
 There's a measurement, a model, a validation, and an honest error bar. That's a
@@ -159,9 +203,9 @@ What exists is research and a design. Specifically:
 | Problem research, 4 rounds, ~23 sources | Done | Summarized in this doc |
 | Competitive check (what's already solved) | Done | Part 6 below |
 | Data source feasibility verification | Done | All four confirmed accessible |
-| Full design spec, 2,815 words | Written and committed | `~/porchlight`, branch `worktree-porchlight-spec`, at `docs/superpowers/specs/2026-07-26-porchlight-design.md` |
-| Git repository | Initialized, 2 commits, clean | `~/porchlight` — local only, no GitHub remote yet |
-| Implementation plan | **Not started** — deliberately | Blocked on four open decisions, see Part 7 |
+| Full design spec, 3,542 words | Written and committed | `~/porchlight`, branch `worktree-porchlight-spec`, at `docs/superpowers/specs/2026-07-26-porchlight-design.md` |
+| Git repository | Initialized, clean | `~/porchlight` — local only, no GitHub remote yet |
+| Implementation plan | **Not started** — deliberately | Blocked on four open decisions, see Part 8 |
 | Any application code | **None** | — |
 | Any hardware purchased | **None** | — |
 
@@ -203,7 +247,8 @@ fixtures with no network.
 **2. Roster & Risk Model** — Households, residents, equipment, contacts, and
 consent records. Produces a risk score per household per hazard type from age, AC
 presence, electricity-dependent equipment, social isolation, building vintage,
-tract social vulnerability, and one underused signal: **medications that impair
+floor within building, neighborhood social vulnerability, and one underused
+signal: **medications that impair
 the body's ability to regulate temperature** (anticholinergics, diuretics, beta
 blockers). Every score carries the list of factors that produced it, because a
 coordinator must be able to answer "why is she at the top of my list?"
@@ -213,7 +258,7 @@ building attributes, and optionally live sensor data; returns a predicted indoor
 temperature trajectory with uncertainty. Two interchangeable backends behind one
 interface: *measured* (there's a sensor) and *modeled* (there isn't). Everything
 downstream consumes the interface and doesn't know or care which answered. The
-model weights the overnight low heavily, because a rowhouse that never cools down
+model weights the overnight low heavily, because a top-floor unit that never cools down
 is the documented killer.
 
 **4. Telemetry Ingest** — Receives heartbeats and readings, and houses the
@@ -249,8 +294,8 @@ those get easier in an unfamiliar stack.
 
 Because EAGLE-I publishes years of historical outage data and NWS alerts are
 archived, **you can replay a real past disaster through the entire pipeline** and
-assert on what the system would have done. Feed in a recorded Baltimore heat wave;
-check which households get flagged, in what order, at what hour.
+assert on what the system would have done. Feed in a recorded New Haven heat wave; check which households get flagged, in
+what order, at what hour.
 
 That gives deterministic end-to-end tests with zero live dependencies. It's also
 the demo — "here is that heat wave, and here is who this system would have reached
@@ -262,12 +307,14 @@ and when" lands considerably harder than a screenshot of a dashboard.
 
 ### Scenario A — The heat wave (the primary case)
 
-It's Thursday. NWS issues an excessive heat warning for Baltimore City starting
-Saturday, with overnight lows not dropping below 79°F.
+It's Thursday. NWS issues an excessive heat warning for New Haven starting
+Saturday, with overnight lows not dropping below 79°F. The Governor activates
+Connecticut's statewide Extreme Hot Weather Protocol — a clean, external,
+machine-detectable trigger.
 
-*Thursday:* The system ingests the alert. The indoor climate estimator projects
-each rostered household forward: this 1918 rowhouse with no central air and a
-west-facing bedroom is on track to sit above 88°F at 4 a.m. Sunday. Risk scores
+*Thursday:* The system ingests both. The indoor climate estimator projects each
+rostered household forward: this third-floor unit in a 1912 triple-decker, no
+central air, west-facing bedroom, is on track to sit above 88°F at 4 a.m. Sunday. Risk scores
 recompute. The coordinator opens the dashboard Friday morning and sees a ranked
 list — not "here are 340 seniors," but "here are the 22 households that need
 contact before Saturday, and here's why each one is on the list."
@@ -291,8 +338,8 @@ not a fault, and raises a high-confidence outage hazard.
 The system already knows which of those homes have someone on an oxygen
 concentrator, and it knows the battery is good for 3 to 8 hours. Those households
 go to the top of the queue immediately with a countdown attached. Everyone else
-gets a lower-priority check. The utility outage map, scraped separately, confirms
-the extent and gives an estimated restoration time — which turns "someone should
+gets a lower-priority check. United Illuminating's outage map, scraped separately, confirms the extent and
+gives an estimated restoration time — which turns "someone should
 check on her" into "her concentrator has about four hours and restoration is
 estimated at six, so she needs to physically move tonight."
 
@@ -383,10 +430,10 @@ plainly because they're what would sink a deployment:
 
 2. **Getting into someone's home at all.** Asking an isolated, elderly person to
    let a stranger install an internet-connected device in their bedroom is a
-   *trust* problem, not an engineering problem. It only works through an
-   organization they already know — which is exactly why the design assumes a
-   partner like Meals on Wheels rather than direct-to-resident signup. Their
-   driver already comes to the door every week.
+   *trust* problem, not an engineering problem. It only works through an organization they already know — which is exactly why
+   the design assumes a partner like Senior Meals on Wheels Greater New Haven
+   rather than direct-to-resident signup. Their driver already comes to the door
+   every week and already does an informal check.
 
 3. **The privacy burden is real and it's on you.** This system holds a list of
    isolated, medically fragile people with their addresses and their medical
@@ -433,14 +480,24 @@ protecting — they're where both the difficulty and the originality live.
 Four decisions, from the spec:
 
 1. **Partner organization — real or synthetic?** Are we actually approaching a
-   Baltimore partner (Meals on Wheels of Central Maryland, a CERT team, the city
-   Health Department's aging division), or building against a realistic synthetic
-   roster with partnership as future work? This changes how much of the privacy
-   design must be *implemented* versus *specified*.
+   New Haven partner, or building against a realistic synthetic roster with
+   partnership as future work? This changes how much of the privacy design must
+   be *implemented* versus *specified*. The realistic candidates, in rough order
+   of fit:
+   - **Senior Meals on Wheels Greater New Haven** (seniormealsct.org) — the
+     strongest option, because their drivers *already* perform a friendly
+     check-in at the door. You'd be giving an existing practice a prioritization
+     engine rather than asking anyone to start doing something new.
+   - **Agency on Aging of South Central Connecticut** (AOASCC, North Haven,
+     203-785-8533) — the actual Area Agency on Aging for greater New Haven.
+   - **City of New Haven Elderly Services** and the **Office of Emergency
+     Management**, which already run the cooling-center activation.
 
-2. **Sensor homes.** Are there 5–10 real households available, or should ground
-   truth come from whatever homes you can get — a friend's apartment, a
-   relative's rowhouse — accepting that the validation set isn't representative?
+2. **Sensor homes.** The triple-decker experiment needs *one* cooperative
+   building with access to all three floors — plausibly easier to arrange in a
+   city of student rentals than five scattered households. Do you have a
+   building, or should ground truth come from whatever you can get, accepting a
+   non-representative validation set?
 
 3. **Which hazard leads?** My recommendation is heat first: it's forecastable days
    ahead, the season is testable, and the estimator is the interesting part.
@@ -459,10 +516,19 @@ Problem statistics: CDC and PLOS Climate on US heat mortality; Healthbeat (June
 2025) on air conditioning as the dominant risk factor; HHS emPOWER Program fact
 sheet for the 2.5M figure; The Conversation and UT Center for Transportation
 Research on device battery life, outage frequency and duration, and the 2003 NYC
-blackout mortality finding; AARP on the PG&E notification failure; Grist and UC
-Berkeley Journalism on the Philadelphia, New York, and San Jose volunteer
-programs; CNS Maryland "Code Red" and PubMed 21371807 on Baltimore rowhouse heat
-and the first-floor AC finding.
+blackout mortality finding; AARP on the PG&E notification failure; Grist and UC Berkeley Journalism on the Philadelphia, New York, and San Jose
+volunteer programs.
+
+New Haven specifics: PMC4937865 on heat mortality effects being more pronounced
+at northerly latitudes; DataHaven's New Haven Equity Profile 2023 and
+NeighborhoodScout for housing age, rental share, multifamily share, and renter
+cost burden; National Low Income Housing Coalition on AC access by housing age
+and tenure; Connecticut DEMHS and newhavenct.gov Office of Emergency Management
+for the Extreme Hot Weather Protocol and cooling centers; 211ct.org for statewide
+cooling center coordination; uinet.com/outages for United Illuminating;
+eversource.com for the Life Support Customer program; NOAA's 2024 urban heat
+island initiative release confirming New Haven was not in that cohort;
+aoascc.org and seniormealsct.org for the partner landscape.
 
 Technical feasibility: `weather.gov/documentation/services-web-api`;
 `empowerprogram.hhs.gov/empower-rest.html`; ORNL Constellation and OSTI DOE Data
