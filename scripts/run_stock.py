@@ -26,6 +26,7 @@ warnings.filterwarnings("ignore")
 
 SQFT_TO_M2 = 0.092903
 THRESHOLD = 26.0      # degree-hour base
+SETPOINT = 22.6       # EIA RECS 2020 median reported indoor temp, occupied
 DANGER_PEAK = 32.0    # sustained indoor peak treated as heat-stress risk
 WARMUP_DAYS = 4
 
@@ -90,8 +91,9 @@ def build(row) -> Dwelling:
         window_to_floor=window_fraction(row.get("in.window_areas")),
         top_floor=is_top_floor(row),
         exposed_wall_fraction=EXPOSED_WALL.get(btype, 0.7),
-        room_ac_watts=watts,
-        room_ac_fraction=frac if frac else 0.35,
+        cooling_capacity_w=watts,
+        conditioned_fraction=frac if frac else 1.0,
+        cooling_setpoint_c=SETPOINT,
     )
 
 
@@ -138,7 +140,9 @@ def main() -> None:
     rows = []
     for i, (_, r) in enumerate(meta.iterrows(), 1):
         dw = build(r)
-        m = metrics(simulate(dw, wx)["t_air"], t, threshold=THRESHOLD, warmup_s=warm)
+        sim = simulate(dw, wx)
+        m = metrics(sim["t_home"], t, threshold=THRESHOLD, warmup_s=warm)
+        mf = metrics(sim["t_free"], t, threshold=THRESHOLD, warmup_s=warm)
         rows.append({
             "city": str(r.get("in.city")),
             "county": str(r.get("in.county_name")),
@@ -150,6 +154,11 @@ def main() -> None:
             "top_floor": bool(dw.top_floor),
             "peak": m["peak"], "night_min": m["night_min"],
             "hours_over": m["hours_over"], "degree_hours": m["degree_hours_over"],
+            # Where you actually are when you are not in the cooled room. For a
+            # home with central air this equals `peak`; for a window unit it does
+            # not, and that difference is the point of the model.
+            "peak_uncooled": mf["peak"],
+            "ac_short_hours": float(sim["ac_short"].sum()),
         })
         if i % 1000 == 0:
             print(f"  {i:,}/{len(meta):,}")
