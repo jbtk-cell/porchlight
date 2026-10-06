@@ -1,0 +1,457 @@
+<title>How Hot Does Your Home Get? — Connecticut indoor heat model</title>
+<style>
+:root{
+  --ground:#f7f8fa; --panel:#ffffff; --panel-2:#eef1f5;
+  --ink:#141a22; --ink-2:#4b5666; --ink-3:#79849550;
+  --rule:#d9dfe7; --brass:#8c6320; --brass-lift:#b98a3e;
+  --cool:#3d6b99; --mild:#7f9bb0; --warm:#c88a2e; --hot:#b4451f; --crit:#7d1d12;
+  --shadow:0 1px 2px rgba(20,26,34,.06),0 8px 24px rgba(20,26,34,.05);
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --ground:#10141a; --panel:#171d26; --panel-2:#1f2732;
+  --ink:#e8edf4; --ink-2:#a3aebd; --ink-3:#6d7a8a80;
+  --rule:#2a333f; --brass:#cf9f52; --brass-lift:#e3b978;
+  --cool:#6fa3d1; --mild:#8fa9bd; --warm:#e0a447; --hot:#e0663a; --crit:#c23b23;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --ground:#10141a; --panel:#171d26; --panel-2:#1f2732;
+  --ink:#e8edf4; --ink-2:#a3aebd; --ink-3:#6d7a8a80;
+  --rule:#2a333f; --brass:#cf9f52; --brass-lift:#e3b978;
+  --cool:#6fa3d1; --mild:#8fa9bd; --warm:#e0a447; --hot:#e0663a; --crit:#c23b23;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+}
+:root[data-theme="light"]{
+  --ground:#f7f8fa; --panel:#ffffff; --panel-2:#eef1f5;
+  --ink:#141a22; --ink-2:#4b5666; --ink-3:#79849550;
+  --rule:#d9dfe7; --brass:#8c6320; --brass-lift:#b98a3e;
+  --cool:#3d6b99; --mild:#7f9bb0; --warm:#c88a2e; --hot:#b4451f; --crit:#7d1d12;
+  --shadow:0 1px 2px rgba(20,26,34,.06),0 8px 24px rgba(20,26,34,.05);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px 72px}
+h1,h2,h3{text-wrap:balance;margin:0}
+.eyebrow{font:600 11px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--brass)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* header */
+header{padding:56px 0 32px;border-bottom:1px solid var(--rule);margin-bottom:32px}
+h1{font-family:var(--serif);font-size:clamp(34px,5.2vw,54px);line-height:1.05;
+  letter-spacing:-.015em;font-weight:600;margin:14px 0 0;max-width:19ch}
+.thesis{font-size:clamp(16px,2vw,19px);color:var(--ink-2);max-width:62ch;margin:18px 0 0}
+.thesis strong{color:var(--ink);font-weight:600}
+.headline{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px}
+.stat{background:var(--panel);border:1px solid var(--rule);border-radius:3px;
+  padding:14px 18px;box-shadow:var(--shadow);flex:1 1 190px}
+.stat .v{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-size:29px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
+.stat .k{font-size:12.5px;color:var(--ink-2);margin-top:5px;line-height:1.4}
+
+section{margin-top:52px}
+h2{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:-.01em;margin-bottom:6px}
+.lede{color:var(--ink-2);max-width:66ch;margin:0 0 22px;font-size:15.5px}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:4px;
+  padding:20px;box-shadow:var(--shadow)}
+
+/* map */
+#map{width:100%;height:auto;display:block}
+#map path{stroke:var(--panel);stroke-width:.5;cursor:pointer;transition:opacity .12s}
+#map .shell{cursor:default}
+#map path:hover{opacity:.78}
+#map path.sel{stroke:var(--ink);stroke-width:1.6}
+.legend{display:flex;align-items:center;gap:9px;margin-top:14px;font-size:12px;color:var(--ink-2)}
+.ramp{height:9px;flex:1;border-radius:2px;
+  background:linear-gradient(90deg,var(--cool),var(--mild),var(--warm),var(--hot),var(--crit))}
+
+/* controls */
+.ctrls{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+@media(max-width:520px){.ctrls{grid-template-columns:1fr}}
+label{display:block;font:600 11px/1.5 var(--mono);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-2);margin-bottom:5px}
+select,input[type=range]{width:100%;font-family:var(--sans);font-size:14.5px;
+  background:var(--panel-2);color:var(--ink);border:1px solid var(--rule);
+  border-radius:3px;padding:8px 9px}
+select:focus-visible,input:focus-visible,button:focus-visible,path:focus-visible{
+  outline:2px solid var(--brass-lift);outline-offset:2px}
+.toggles{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.tog{font:500 13px var(--sans);background:var(--panel-2);color:var(--ink-2);
+  border:1px solid var(--rule);border-radius:999px;padding:6px 13px;cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s}
+.tog[aria-pressed=true]{background:var(--brass);border-color:var(--brass);color:#fff}
+.tog[aria-pressed=true]{color:#fff}
+@media (prefers-color-scheme:dark){.tog[aria-pressed=true]{color:#12171e}}
+:root[data-theme="dark"] .tog[aria-pressed=true]{color:#12171e}
+:root[data-theme="light"] .tog[aria-pressed=true]{color:#fff}
+
+#chart{width:100%;height:auto;display:block;margin-top:16px}
+.verdict{margin-top:16px;padding:14px 16px;border-radius:3px;border-left:3px solid var(--hot);
+  background:var(--panel-2);font-size:14.5px}
+.verdict b{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+.scroll{overflow-x:auto}
+th{text-align:left;font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-2);padding:0 12px 8px 0;border-bottom:1px solid var(--rule);white-space:nowrap}
+td{padding:9px 12px 9px 0;border-bottom:1px solid var(--rule);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:3px;min-width:2px;display:block}
+
+.note{font-size:13.5px;color:var(--ink-2);max-width:72ch}
+.note code{font-family:var(--mono);font-size:12.5px;background:var(--panel-2);
+  padding:1px 5px;border-radius:2px}
+details{border-top:1px solid var(--rule);padding-top:16px;margin-top:8px}
+summary{cursor:pointer;font-weight:600;font-size:15px;margin-bottom:10px}
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--rule);
+  font-size:13px;color:var(--ink-2)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Connecticut &middot; 2018 heat wave &middot; 1,556,937 dwellings modeled</div>
+  <h1>Your air conditioner may not be protecting you.</h1>
+  <p class="thesis">Heat warnings describe the temperature <em>outside</em>. People die of the temperature
+  <em>inside</em>, and almost nobody measures that. This model runs a heat-transfer simulation of every
+  home in Connecticut's housing sample through a real heat wave &mdash; and finds that
+  <strong>a window air conditioner leaves the rest of the home nearly as hot as having none at all.</strong></p>
+  <div class="headline" id="headline"></div>
+</header>
+
+<section>
+  <h2>Where the dangerous housing is</h2>
+  <p class="lede">Share of homes whose interior climbs past 32&nbsp;&deg;C (90&nbsp;&deg;F) during the heat wave.
+  Every city is given the <em>same weather</em>, so what you are seeing is the housing stock itself &mdash;
+  age, construction, and what cooling equipment is actually installed. Click a city.</p>
+  <div class="grid">
+    <div class="card">
+      <svg id="map" viewBox="0 0 560 380" role="img" aria-label="Map of Connecticut cities by indoor heat risk"></svg>
+      <div class="legend"><span class="num" id="lgLo"></span><span class="ramp"></span><span class="num" id="lgHi"></span></div>
+    </div>
+    <div class="card" id="cityCard"></div>
+  </div>
+</section>
+
+<section>
+  <h2>Try your own building</h2>
+  <p class="lede">This runs the same physics live in your browser &mdash; a two-node thermal model with
+  solar gain, envelope mass, and window-opening behaviour &mdash; against the real June&nbsp;2018
+  Connecticut heat wave. Change the cooling and watch what happens.</p>
+  <div class="grid">
+    <div class="card">
+      <div class="ctrls">
+        <div><label for="year">Year built</label><select id="year"></select></div>
+        <div><label for="btype">Building type</label><select id="btype"></select></div>
+        <div><label for="floor">Which floor</label><select id="floor"></select></div>
+        <div><label for="cool">Cooling</label><select id="cool"></select></div>
+      </div>
+      <div class="toggles">
+        <button class="tog" id="tWin" aria-pressed="true">Windows opened at night</button>
+        <button class="tog" id="tBlind" aria-pressed="false">Blinds kept closed</button>
+        <button class="tog" id="tRoof" aria-pressed="false">Reflective roof</button>
+      </div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+    <div class="card">
+      <svg id="chart" viewBox="0 0 560 320" role="img" aria-label="Indoor versus outdoor temperature over the heat wave"></svg>
+      <p class="note" style="margin-top:12px">Solid line: modelled indoor temperature. Dotted: outdoor.
+      The shaded band marks time spent above 32&nbsp;&deg;C.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>What actually determines the risk</h2>
+  <p class="lede">Weighted across all 1.56&nbsp;million Connecticut dwellings. Cooling equipment dominates
+  everything else &mdash; and the distinction that matters is not whether you own an air conditioner,
+  but whether it cools the whole home.</p>
+  <div class="grid">
+    <div class="card"><h3 class="eyebrow" style="margin-bottom:12px">By cooling equipment</h3>
+      <div class="scroll"><table id="tCool"></table></div></div>
+    <div class="card"><h3 class="eyebrow" style="margin-bottom:12px">By age of building</h3>
+      <div class="scroll"><table id="tVint"></table></div></div>
+  </div>
+  <div class="grid" style="margin-top:22px">
+    <div class="card"><h3 class="eyebrow" style="margin-bottom:12px">By building type</h3>
+      <div class="scroll"><table id="tType"></table></div></div>
+    <div class="card"><h3 class="eyebrow" style="margin-bottom:12px">Owners and renters</h3>
+      <div class="scroll"><table id="tTen"></table></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>How this works, and what it cannot tell you</h2>
+  <details open><summary>The model</summary>
+  <p class="note">Each home is a two-node lumped thermal network: an air node and an envelope-mass node,
+  integrated forward through real hourly weather. It includes conduction through walls and roof, solar
+  gain through glazing split across orientations, sol-air temperature on the roof for top-floor units,
+  internal gains, air exchange, and a room air conditioner that cools only the fraction of floor area it
+  actually serves. Building characteristics &mdash; vintage, floor area, air leakage, glazing, storey,
+  cooling equipment &mdash; come from NREL's ResStock Connecticut sample, weighted to represent the
+  state's 1.56&nbsp;million dwellings.</p></details>
+
+  <details><summary>Why the window-opening behaviour is modelled here rather than taken from ResStock</summary>
+  <p class="note">ResStock publishes its own simulated indoor temperatures, but during this heat wave its
+  natural ventilation is effectively switched off: measured across 53 Connecticut dwellings, windows were
+  open a median <code>0.15%</code> of timesteps during the heat wave and never once in 26 of them, while
+  running about <code>10%</code> of timesteps in an ordinary July. Taking those temperatures at face value
+  would report a simulator artifact as a finding. So this model uses ResStock's building
+  <em>characteristics</em>, which are sound, and applies its own ventilation rule: windows open when it is
+  cooler outside than in and the interior is uncomfortable.</p></details>
+
+  <details><summary>Limitations, stated plainly</summary>
+  <p class="note">This is a physics model, not a measurement. It has not been validated against measured
+  indoor temperatures in Connecticut homes, and that is the single biggest thing that would strengthen it.
+  Every dwelling is a single well-mixed zone, so it cannot represent one cool bedroom inside a hot
+  apartment. Occupant behaviour is a simple rule, not a survey. The 32&nbsp;&deg;C line is a
+  heat-stress reference point, not a clinical threshold, and no mortality estimate is made or implied here
+  &mdash; converting indoor temperature into a death count requires an exposure-response relationship
+  estimated on indoor temperature, which does not yet exist for the United States.</p></details>
+</section>
+
+<footer>
+  Housing data: NREL ResStock 2025 AMY2018 release, public domain. Weather: 25&nbsp;June &ndash;
+  6&nbsp;July 2018, Connecticut. Geometry: US Census TIGERweb. Thermal model and analysis are original.
+  Everything on this page is computed from public data and runs offline.
+</footer>
+</div>
+
+<script>
+const D = /*__DATA__*/;
+const GEO = /*__GEO__*/;
+const OUTLINE = /*__OUTLINE__*/;
+const WX = D.wx, DANGER = 32;
+
+/* ---------- thermal model, ported from src/building.py ---------- */
+const RHO_CP = 1200, HGT = 2.6, BEAM = 0.18, H_OUT = 25, SKY = 4, OPEN_ACH = 5;
+const R_WALL = {"<1940":.5,"1940s":.6,"1950s":.8,"1960s":1.1,"1970s":1.5,"1980s":2.0,"1990s":2.3,"2000s":2.6,"2010s":3.0};
+const R_ROOF = {"<1940":1.3,"1940s":1.5,"1950s":1.9,"1960s":2.5,"1970s":3.5,"1980s":4.5,"1990s":5.5,"2000s":6.5,"2010s":7.5};
+const MASS = {"Mobile Home":30000,"Single-Family Detached":80000,"Single-Family Attached":110000,
+  "Multi-Family with 2 - 4 Units":110000,"Multi-Family with 5+ Units":140000};
+const EXPOSED = {"Single-Family Detached":1,"Mobile Home":1,"Single-Family Attached":.6,
+  "Multi-Family with 2 - 4 Units":.5,"Multi-Family with 5+ Units":.35};
+
+function simulate(o){
+  const A = o.area, vol = A*HGT, win = A*o.wtf;
+  const side = Math.sqrt(A);
+  const wallA = Math.max(4*side*HGT*(EXPOSED[o.btype]||.7) - win, 5);
+  const uaWall = wallA/((R_WALL[o.year]||1)+.16);
+  const uaWin  = win/0.35;
+  const uaRoof = o.top ? A/((R_ROOF[o.year]||2)+.16) : 0;
+  const uaSolid = uaWall+uaRoof;
+  const uaAM = Math.max(uaSolid*2,1), uaMO = Math.max(uaSolid,.5);
+  const cAir = RHO_CP*vol*4, cMass = (MASS[o.btype]||90000)*A;
+  const qInt = 4*A;
+
+  // The air node's time constant is short -- with windows open it is around
+  // 1600 s -- so an hourly explicit step is unstable and the solution oscillates
+  // instead of relaxing. Sub-step within each hour and interpolate the forcing.
+  const SUB = 12, dt = 3600/SUB;
+
+  const n = WX.tout.length, ta = new Float64Array(n), tm = new Float64Array(n);
+  let Ta = WX.tout[0]+2, Tm = Ta;
+  ta[0] = Ta; tm[0] = Tm;
+  for(let k=0;k<n-1;k++){
+    for(let j=0;j<SUB;j++){
+      const f = j/SUB;
+      const To  = WX.tout[k] + (WX.tout[k+1]-WX.tout[k])*f;
+      const dni = WX.dni[k]  + (WX.dni[k+1] -WX.dni[k]) *f;
+      const dhi = WX.dhi[k]  + (WX.dhi[k+1] -WX.dhi[k]) *f;
+      const infil = o.ach50/20;
+      const open = o.opensWindows && Ta>23.5 && To<Ta-0.5;
+      const uaVent = RHO_CP*vol*(infil + (open?OPEN_ACH:0))/3600;
+      const qWin = (dni*BEAM + dhi)*win*0.6*o.shade;
+      let solAir = To;
+      if(o.top){ const horiz = dni*0.85 + dhi;
+        solAir = To + Math.max(o.absorb*horiz/H_OUT - SKY, -SKY); }
+      let qA = (To-Ta)*(uaWin+uaVent) + (Tm-Ta)*uaAM + qWin + qInt;
+      if(o.acW>0 && Ta>24) qA -= o.acW*o.acFrac;
+      const qM = (Ta-Tm)*uaAM + (solAir-Tm)*uaMO;
+      Ta += dt*qA/cAir;
+      Tm += dt*qM/cMass;
+    }
+    ta[k+1] = Ta; tm[k+1] = Tm;
+  }
+  return ta;
+}
+
+/* ---------- colour ramp ---------- */
+const RAMP = ["--cool","--mild","--warm","--hot","--crit"].map(v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+function rampCol(t){ // t in 0..1
+  const x = Math.max(0,Math.min(.999,t))*(RAMP.length-1);
+  const i = Math.floor(x); return mix(RAMP[i],RAMP[i+1],x-i);
+}
+function hex2rgb(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');
+  return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+function mix(a,b,t){const A=hex2rgb(a),B=hex2rgb(b);
+  return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`;}
+
+/* ---------- headline ---------- */
+const S = D.statewide, NH = D.new_haven, cool = D.breakdowns.by_cooling;
+const fmt = n => n.toLocaleString();
+document.getElementById('headline').innerHTML = [
+  [`${S.pct_dangerous}%`, `of Connecticut's ${fmt(S.dwellings)} homes climb past 32&nbsp;&deg;C indoors`],
+  [`${cool['Room AC'].peak.toFixed(1)}&nbsp;&deg;C`, `average peak with a <b>window unit</b> &mdash; ${fmt(cool['Room AC'].dwellings)} homes`],
+  [`${cool['Central AC'].peak.toFixed(1)}&nbsp;&deg;C`, `average peak with <b>central air</b> &mdash; the same heat wave`],
+  [`${NH.pct_dangerous}%`, `of New Haven homes, where ${NH.pct_pre1940}% predate 1940`]
+].map(([v,k])=>`<div class="stat"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+
+/* ---------- map ---------- */
+const cities = D.cities;
+const vals = Object.values(cities).map(c=>c.pct_dangerous);
+const lo = Math.floor(Math.min(...vals)), hi = Math.ceil(Math.max(...vals));
+document.getElementById('lgLo').textContent = lo+'%';
+document.getElementById('lgHi').textContent = hi+'%';
+
+// Bound the projection to the whole state so the cities sit in real geography.
+let bb=[180,90,-180,-90];
+OUTLINE.rings.forEach(r=>r.forEach(c=>{
+  bb[0]=Math.min(bb[0],c[0]);bb[1]=Math.min(bb[1],c[1]);
+  bb[2]=Math.max(bb[2],c[0]);bb[3]=Math.max(bb[3],c[1]);}));
+const PAD=18, W=560, Hh=380;
+const sx=(W-2*PAD)/(bb[2]-bb[0]), sy=(Hh-2*PAD)/(bb[3]-bb[1]), s=Math.min(sx,sy);
+const ox=PAD+((W-2*PAD)-(bb[2]-bb[0])*s)/2, oy=PAD+((Hh-2*PAD)-(bb[3]-bb[1])*s)/2;
+const px=c=>[ox+(c[0]-bb[0])*s, oy+(bb[3]-c[1])*s];
+
+const map=document.getElementById('map');
+// State outline first, so cities read as places inside Connecticut.
+const shell=document.createElementNS('http://www.w3.org/2000/svg','path');
+shell.setAttribute('d', OUTLINE.rings.map(r=>'M'+r.map(c=>px(c).map(v=>v.toFixed(1)).join(',')).join('L')+'Z').join(''));
+shell.setAttribute('fill','var(--panel-2)');
+shell.setAttribute('stroke','var(--rule)');
+shell.setAttribute('stroke-width','1');
+shell.setAttribute('pointer-events','none');
+shell.setAttribute('class','shell');
+map.appendChild(shell);
+GEO.features.forEach(f=>{
+  const name=f.properties.name, rec=cities[name];
+  const d=f.geometry.coordinates.map(p=>'M'+p[0].map(c=>px(c).map(v=>v.toFixed(1)).join(',')).join('L')+'Z').join('');
+  const el=document.createElementNS('http://www.w3.org/2000/svg','path');
+  el.setAttribute('d',d);
+  el.setAttribute('fill', rec ? rampCol((rec.pct_dangerous-lo)/Math.max(hi-lo,1)) : 'var(--panel-2)');
+  el.setAttribute('tabindex','0'); el.setAttribute('role','button');
+  el.setAttribute('aria-label', rec?`${name}, ${rec.pct_dangerous}% of homes at risk`:name);
+  if(rec){ el.addEventListener('click',()=>selectCity(name,el));
+           el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectCity(name,el);}}); }
+  map.appendChild(el);
+});
+
+function row(k,v){return `<tr><td>${k}</td><td class="n" style="text-align:right">${v}</td></tr>`;}
+function selectCity(name,el){
+  map.querySelectorAll('path').forEach(p=>p.classList.remove('sel'));
+  if(el) el.classList.add('sel');
+  const c=cities[name];
+  document.getElementById('cityCard').innerHTML=`
+    <div class="eyebrow">${name}, Connecticut</div>
+    <div class="v num" style="font-size:44px;font-weight:600;letter-spacing:-.02em;line-height:1.1;margin:8px 0 2px">${c.pct_dangerous}%</div>
+    <div style="color:var(--ink-2);font-size:14.5px;margin-bottom:18px">of ${fmt(c.dwellings)} homes climb past 32&nbsp;&deg;C indoors during the heat wave</div>
+    <div class="scroll"><table><tbody>
+      ${row('Average indoor peak', c.peak.toFixed(1)+' °C')}
+      ${row('Built before 1940', c.pct_pre1940+'%')}
+      ${row('Window unit only', c.pct_room_ac_only+'%')}
+      ${row('No cooling at all', c.pct_no_cooling+'%')}
+      ${row('Renter-occupied', c.pct_renter+'%')}
+    </tbody></table></div>`;
+}
+selectCity('New Haven', [...map.querySelectorAll('path')].find(p=>(p.getAttribute('aria-label')||'').startsWith('New Haven')));
+
+/* ---------- tables ---------- */
+function table(el,obj,label){
+  const rows=Object.entries(obj).filter(([k])=>k!=='nan'&&k!=='Not Available')
+    .sort((a,b)=>b[1].pct_dangerous-a[1].pct_dangerous);
+  const mx=Math.max(...rows.map(r=>r[1].pct_dangerous));
+  document.getElementById(el).innerHTML=
+    `<thead><tr><th>${label}</th><th style="text-align:right">Homes</th><th style="text-align:right">Peak</th><th style="width:34%">At risk</th></tr></thead><tbody>`+
+    rows.map(([k,v])=>`<tr><td>${k.replace('Multi-Family with','MF')}</td>
+      <td class="n" style="text-align:right">${fmt(v.dwellings)}</td>
+      <td class="n" style="text-align:right">${v.peak.toFixed(1)}</td>
+      <td><span style="display:flex;align-items:center;gap:8px">
+        <span class="bar" style="width:${(v.pct_dangerous/mx*100).toFixed(0)}%;background:${rampCol((v.pct_dangerous-lo)/Math.max(hi-lo,1))}"></span>
+        <span class="n" style="font-size:12.5px;color:var(--ink-2)">${v.pct_dangerous}%</span></span></td></tr>`).join('')+`</tbody>`;
+}
+table('tCool',D.breakdowns.by_cooling,'Equipment');
+table('tVint',D.breakdowns.by_vintage,'Built');
+table('tType',D.breakdowns.by_type,'Type');
+table('tTen',D.breakdowns.by_tenure,'Tenure');
+
+/* ---------- simulator ---------- */
+const YEARS=Object.keys(R_WALL), TYPES=Object.keys(MASS);
+const COOLS={'None (no air conditioning)':[0,0],'Window unit in one room':[2500,.35],
+  'Two window units':[2500,.6],'Central air conditioning':[7000,1]};
+const FLOORS={'Top floor / under the roof':true,'Ground or middle floor':false};
+const sel=(id,opts,def)=>{const e=document.getElementById(id);
+  e.innerHTML=opts.map(o=>`<option${o===def?' selected':''}>${o}</option>`).join('');};
+sel('year',YEARS,'<1940'); sel('btype',TYPES,'Multi-Family with 2 - 4 Units');
+sel('floor',Object.keys(FLOORS),'Top floor / under the roof');
+sel('cool',Object.keys(COOLS),'Window unit in one room');
+
+const tog=(id)=>{const b=document.getElementById(id);
+  b.addEventListener('click',()=>{b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');run();});};
+['tWin','tBlind','tRoof'].forEach(tog);
+['year','btype','floor','cool'].forEach(id=>document.getElementById(id).addEventListener('change',run));
+
+function opts(){
+  const c=COOLS[document.getElementById('cool').value];
+  return {area:95, year:document.getElementById('year').value,
+    btype:document.getElementById('btype').value,
+    top:FLOORS[document.getElementById('floor').value],
+    ach50:18, wtf:0.14, acW:c[0], acFrac:c[1]||.35,
+    opensWindows:document.getElementById('tWin').getAttribute('aria-pressed')==='true',
+    shade:document.getElementById('tBlind').getAttribute('aria-pressed')==='true'?0.35:0.7,
+    absorb:document.getElementById('tRoof').getAttribute('aria-pressed')==='true'?0.25:0.85};
+}
+
+function run(){
+  const o=opts(), ta=simulate(o), warm=96; // discard 4-day spin-up
+  const t=Array.from(ta).slice(warm), out=WX.tout.slice(warm);
+  const peak=Math.max(...t), hrs=t.filter(v=>v>DANGER).length;
+  const outPeak=Math.max(...out);
+  draw(t,out,peak);
+
+  const base={...o,acW:0,acFrac:0}, noAC=Math.max(...Array.from(simulate(base)).slice(warm));
+  const shut={...o,opensWindows:false}, shutPeak=Math.max(...Array.from(simulate(shut)).slice(warm));
+  let msg=`Peak indoor temperature <b>${peak.toFixed(1)}&nbsp;&deg;C</b> (${(peak*9/5+32).toFixed(0)}&nbsp;&deg;F) while it reached <b>${outPeak.toFixed(1)}&nbsp;&deg;C</b> outside. `;
+  msg += hrs>0 ? `It stays above 32&nbsp;&deg;C for <b>${hrs}</b> hours across the heat wave.` : `It never passes 32&nbsp;&deg;C.`;
+  if(o.acW>0) msg += ` Without any air conditioning it would peak at <b>${noAC.toFixed(1)}&nbsp;&deg;C</b> &mdash; a difference of only <b>${(noAC-peak).toFixed(1)}&nbsp;&deg;C</b>.`;
+  if(o.opensWindows) msg += ` If the windows stayed shut it would reach <b>${shutPeak.toFixed(1)}&nbsp;&deg;C</b>.`;
+  const v=document.getElementById('verdict');
+  v.innerHTML=msg;
+  v.style.borderLeftColor = peak>38?'var(--crit)':peak>32?'var(--hot)':peak>28?'var(--warm)':'var(--cool)';
+}
+
+function draw(t,out,peak){
+  const W=560,H=320,L=42,R=12,T=14,B=28;
+  const lo=Math.min(...out)-1, hi=Math.max(peak,...out)+2;
+  const X=i=>L+i*(W-L-R)/(t.length-1), Y=v=>T+(hi-v)*(H-T-B)/(hi-lo);
+  const line=a=>a.map((v,i)=>`${i?'L':'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+  let g='';
+  for(let v=Math.ceil(lo/5)*5; v<hi; v+=5){
+    g+=`<line x1="${L}" y1="${Y(v).toFixed(1)}" x2="${W-R}" y2="${Y(v).toFixed(1)}" stroke="var(--rule)" stroke-width=".5"/>`+
+       `<text x="${L-7}" y="${(Y(v)+3.5).toFixed(1)}" text-anchor="end" font-size="10" font-family="var(--mono)" fill="var(--ink-2)">${v}</text>`;
+  }
+  const danger=Y(DANGER);
+  const above=t.map((v,i)=>[X(i),Y(Math.max(v,DANGER))]);
+  const area=`M${above[0][0].toFixed(1)},${danger.toFixed(1)}`+
+    above.map(p=>`L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('')+
+    `L${above[above.length-1][0].toFixed(1)},${danger.toFixed(1)}Z`;
+  const days=Math.floor(t.length/24);
+  let ticks='';
+  for(let d=0;d<=days;d++){const x=X(d*24);
+    ticks+=`<text x="${x.toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" font-family="var(--mono)" fill="var(--ink-2)">${(29+d)>30?(29+d-30):(29+d)}${(29+d)===30?' Jun':''}</text>`;}
+  document.getElementById('chart').innerHTML=g+
+    `<path d="${area}" fill="var(--hot)" opacity=".16"/>`+
+    `<line x1="${L}" y1="${danger.toFixed(1)}" x2="${W-R}" y2="${danger.toFixed(1)}" stroke="var(--hot)" stroke-width="1" stroke-dasharray="4 3"/>`+
+    `<text x="${W-R}" y="${(danger-6).toFixed(1)}" text-anchor="end" font-size="10" font-family="var(--mono)" fill="var(--hot)">32 °C</text>`+
+    `<path d="${line(out)}" fill="none" stroke="var(--ink-2)" stroke-width="1.2" stroke-dasharray="2 3" opacity=".8"/>`+
+    `<path d="${line(t)}" fill="none" stroke="var(--hot)" stroke-width="2.1" stroke-linejoin="round"/>`+ticks;
+}
+run();
+</script>
